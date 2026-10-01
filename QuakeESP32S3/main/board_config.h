@@ -18,6 +18,7 @@
 #define BOARD_GENERIC                   0
 #define BOARD_WIO_TRACKER_L2            1       // Seeed Wio Tracker L2 / L2 Pro
 #define BOARD_LILYGO_TDECK              2       // LilyGO T-Deck / T-Deck Plus
+#define BOARD_THINKNODE_M9              3       // Elecrow ThinkNode M9
 // Also selectable at build time: idf.py -B build-tdeck -DBOARD=BOARD_LILYGO_TDECK build
 #ifndef BOARD
 #define BOARD                           BOARD_WIO_TRACKER_L2
@@ -160,6 +161,69 @@
 #define BUTTON_PIN_LEFT                 -1
 #define BUTTON_PIN_RIGHT                -1
 #define BUTTON_PIN_FIRE                 0
+#define BUTTON_PIN_JUMP                 -1
+#define BUTTON_PIN_WEAPON               -1
+#define BUTTON_PIN_MENU                 -1
+
+#elif BOARD == BOARD_THINKNODE_M9
+// -----------------------------------------------------------------------------
+// Elecrow ThinkNode M9: ESP32-S3 (16 MB flash, 8 MB octal PSRAM), 2.4" 320x240
+// ST7789, microSD on the display SPI bus, passive buzzer, STC8H keypad
+// controller (I2C). Console on UART0 (CH340): build with -DBOARD=BOARD_THINKNODE_M9,
+// which also applies sdkconfig.defaults.m9. See esp_board_m9.c.
+// -----------------------------------------------------------------------------
+#define DISPLAY_CONTROLLER              DISPLAY_CONTROLLER_ST7789
+#define DISPLAY_SPI_HOST                SPI3_HOST
+#define DISPLAY_SPI_CLOCK_HZ            (40 * 1000 * 1000)
+#define DISPLAY_PIN_MOSI                47
+#define DISPLAY_PIN_SCLK                40
+#define DISPLAY_PIN_CS                  16
+#define DISPLAY_PIN_DC                  15
+#define DISPLAY_PIN_RST                 14
+#define DISPLAY_PIN_BACKLIGHT           17
+#define DISPLAY_BACKLIGHT_ON_LEVEL      0
+#define DISPLAY_MADCTL                  0xA0    // landscape (MY | MV), RGB
+#define DISPLAY_INVERT_COLORS           1
+#define DISPLAY_X_OFFSET                0
+#define DISPLAY_Y_OFFSET                0
+
+// SD card on the display SPI bus (the LoRa radio is on it too, kept deselected)
+#define SD_MODE                         SD_MODE_SPI
+#define SD_SPI_HOST                     SPI3_HOST
+#define SD_SPI_CLOCK_KHZ                40000   // 20000 is used if mounting fails
+#define SD_SDMMC_CLOCK_KHZ              20000   // unused
+#define SD_PIN_MOSI                     47
+#define SD_PIN_MISO                     38
+#define SD_PIN_SCLK                     40
+#define SD_PIN_CS                       48
+#define SD_PIN_D1                       -1
+#define SD_PIN_D2                       -1
+#define SD_PIN_D3                       -1
+
+// The only sound output is a passive buzzer: driven with PDM, it plays the game
+// audio at low quality. AUDIO_OUTPUT_NONE to keep the game silent.
+#define AUDIO_OUTPUT                    AUDIO_OUTPUT_PDM
+#define AUDIO_PIN_MCLK                  -1
+#define AUDIO_PIN_BCLK                  -1
+#define AUDIO_PIN_WS                    -1
+#define AUDIO_PIN_DOUT                  9
+#define AUDIO_PDM_PIN_CLK               -1
+
+#define BOARD_I2C_SDA                   20
+#define BOARD_I2C_SCL                   21
+#define BOARD_PIN_POWER_ON              18      // VEXT, active low
+#define BOARD_PIN_RADIO_CS              39
+#define BOARD_PIN_GPS_EN                11
+#define BOARD_PIN_GPS_SLEEP             10
+#define KEYBOARD_PIN_INT                12      // key press pulse (unused: the keypad is polled)
+#define KEYBOARD_PIN_LED                46      // keypad backlight
+
+// The keypad is handled in esp_board_m9.c
+#define BUTTON_PIN_UP                   -1
+#define BUTTON_PIN_DOWN                 -1
+#define BUTTON_PIN_LEFT                 -1
+#define BUTTON_PIN_RIGHT                -1
+#define BUTTON_PIN_FIRE                 -1
 #define BUTTON_PIN_JUMP                 -1
 #define BUTTON_PIN_WEAPON               -1
 #define BUTTON_PIN_MENU                 -1

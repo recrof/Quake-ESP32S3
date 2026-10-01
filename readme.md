@@ -4,8 +4,9 @@ A port of [MG24Quake](https://github.com/next-hack/MG24Quake), Nicola Wrachien's
 Silicon Labs EFR32MG24 microcontrollers (276 kB RAM), to the ESP32-S3. It runs the **full retail
 Quake** on the [Seeed Wio Tracker L2 / L2 Pro](https://wiki.seeedstudio.com/meshtastic_wio_tracker_l2_intro/)
 with its touch screen, speaker and microSD card, and on the
-[LilyGO T-Deck](https://github.com/Xinyuan-LilyGO/T-Deck) with its keyboard and trackball. Bluetooth
-LE keyboards, mice and gamepads are supported on both. Other ESP32-S3 boards with PSRAM, a 320x240 SPI display and an SD card can be
+[LilyGO T-Deck](https://github.com/Xinyuan-LilyGO/T-Deck) with its keyboard and trackball, and on the
+[Elecrow ThinkNode M9](https://www.elecrow.com/wiki/ThinkNode_M9_Meshtastic_Communication_Terminal_with_Full_Keyboard.html)
+with its keypad. Bluetooth LE keyboards, mice and gamepads are supported on all of them. Other ESP32-S3 boards with PSRAM, a 320x240 SPI display and an SD card can be
 configured in [`board_config.h`](QuakeESP32S3/main/board_config.h).
 
 Based on WinQuake/SDLQuake by id Software, MG24 port by Nicola Wrachien (next-hack). The
@@ -27,7 +28,7 @@ technical background of the engine is described in the next-hack articles:
 - Sound: 8 bit stereo, 11025 Hz; static, ambient and dynamic sounds.
 - Console with cheats, options with key remapping, savegames with full game state.
 - Touch screen controls with multi-touch; Bluetooth LE keyboards, mice and gamepads.
-- About 18-22 fps on the Wio Tracker L2 and the T-Deck (ESP32-S3 at 240 MHz).
+- About 18-22 fps on the Wio Tracker L2, the T-Deck and the ThinkNode M9 (ESP32-S3 at 240 MHz).
 
 ## Limitations
 
@@ -62,15 +63,21 @@ Same as for the L2, with the T-Deck build (`idf.py -B build-tdeck -DBOARD=BOARD_
 see [Building](#building)). To enter download mode, hold the trackball (BOOT) while switching
 on or pressing RESET.
 
+## Quick start (ThinkNode M9)
+
+Same as for the L2, with the M9 build (`idf.py -B build-m9 -DBOARD=BOARD_THINKNODE_M9 build`).
+The M9 USB port is a CH340 USB-serial bridge: flashing resets the board into download mode by
+itself (use `-b 460800`: faster baud rates may fail), and the serial console is on it at 115200.
+
 ## Hardware
 
-| Item | Wio Tracker L2 | T-Deck | Generic board |
-|---|---|---|---|
-| MCU | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3 with PSRAM (8 MB recommended, e.g. N8R8 / N16R8), flash ≥ 4 MB |
-| Display | 3.2" 320x240 NV3031B, QSPI | 2.8" 320x240 ST7789, SPI | 320x240 SPI LCD, ST7789 or ILI9341 |
-| Storage | microSD, SDMMC 1-bit | microSD, SPI (shared with the display) | SD card (FAT), SPI or SDMMC (1/4 bit) |
-| Audio | ES8311 codec + speaker amplifier | MAX98357A I2S amplifier | optional I2S DAC/amplifier (MAX98357A, PCM5102…) or PDM on one pin |
-| Input | GT911 touch screen, BOOT and WAKE buttons, Bluetooth LE | keyboard, trackball, Bluetooth LE | Bluetooth LE, optional GPIO buttons |
+| Item | Wio Tracker L2 | T-Deck | ThinkNode M9 | Generic board |
+|---|---|---|---|---|
+| MCU | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3 with PSRAM (8 MB recommended, e.g. N8R8 / N16R8), flash ≥ 4 MB |
+| Display | 3.2" 320x240 NV3031B, QSPI | 2.8" 320x240 ST7789, SPI | 2.4" 320x240 ST7789, SPI | 320x240 SPI LCD, ST7789 or ILI9341 |
+| Storage | microSD, SDMMC 1-bit | microSD, SPI (shared with the display) | microSD, SPI (shared with the display) | SD card (FAT), SPI or SDMMC (1/4 bit) |
+| Audio | ES8311 codec + speaker amplifier | MAX98357A I2S amplifier | passive buzzer, driven with PDM | optional I2S DAC/amplifier (MAX98357A, PCM5102…) or PDM on one pin |
+| Input | GT911 touch screen, BOOT and WAKE buttons, Bluetooth LE | keyboard, trackball, Bluetooth LE | keypad, Bluetooth LE | Bluetooth LE, optional GPIO buttons |
 
 On the L2, power rails, display reset and the touch controller are driven through the PCA9555
 GPIO expander, and the backlight through the LP5814 LED driver, all on the I2C bus (SDA 47,
@@ -79,6 +86,11 @@ SCL 48). See [`esp_board_l2.c`](QuakeESP32S3/main/esp_board_l2.c).
 On the T-Deck, GPIO10 powers the peripherals, the keyboard is an ESP32-C3 at I2C address 0x55
 (SDA 18, SCL 8) and the trackball pulses GPIO 3/15/1/2. See
 [`esp_board_tdeck.c`](QuakeESP32S3/main/esp_board_tdeck.c).
+
+On the ThinkNode M9, GPIO18 (active low) powers the peripherals and the keypad is an STC8H
+microcontroller at I2C address 0x6C (V1 boards) or 0x6D (V2) on SDA 20, SCL 21. The console is on
+UART0 (`sdkconfig.defaults.m9`, applied by the M9 build). See
+[`esp_board_m9.c`](QuakeESP32S3/main/esp_board_m9.c).
 
 Bluetooth: BLE keyboards and mice, Xbox Wireless controllers (firmware 5.x+), 8BitDo pads in
 BLE/Android mode and generic BLE gamepads work. Bluetooth Classic-only devices (DualShock 4,
@@ -128,6 +140,27 @@ BOOT opens the menu (escape); WAKE jumps in game and selects in menus.
 Other letters keep their default Quake bindings in game. Held keys need the keyboard firmware
 from June 2025 or later (raw matrix mode); with older keyboard firmware each key press is a short
 tap. The serial log says which mode is in use.
+
+### ThinkNode M9 keypad
+
+| Key | In game | In menus / console |
+|---|---|---|
+| D-pad up / down | forward / back | arrow keys |
+| D-pad left / right | turn | arrow keys |
+| D-pad center (Enter), E | fire | select |
+| W / S | forward / back | letters |
+| A / D | strafe left / right | letters |
+| Q, FM | next weapon | |
+| Space | jump / swim up | space |
+| Sym + key | digits / symbols (1-8 select weapons) | digits / symbols |
+| Home | menu | back |
+| Del | menu | back / backspace |
+| Mute | scores | |
+| Time | console | console |
+
+The keypad reports single key presses only: it can't tell when a key is released, and keys
+can't be combined. Each press is a short tap (movement keys last a bit longer); press repeatedly
+to keep moving. Turning on *Always Run* in the options menu helps.
 
 ### Bluetooth LE keyboard, mouse and gamepad
 
@@ -186,6 +219,7 @@ cd QuakeESP32S3
 idf.py set-target esp32s3
 idf.py build flash monitor                                        # Wio Tracker L2
 idf.py -B build-tdeck -DBOARD=BOARD_LILYGO_TDECK build flash monitor   # T-Deck
+idf.py -B build-m9 -DBOARD=BOARD_THINKNODE_M9 build flash monitor      # ThinkNode M9
 ```
 
 To create the merged image for a release:
@@ -201,8 +235,8 @@ not been tested.
 ### Configuration
 
 Select the board with `BOARD` in [`board_config.h`](QuakeESP32S3/main/board_config.h)
-(`BOARD_WIO_TRACKER_L2` by default, `BOARD_LILYGO_TDECK` or `BOARD_GENERIC`), or pass
-`-DBOARD=...` to `idf.py`. For a generic board set the display
+(`BOARD_WIO_TRACKER_L2` by default, `BOARD_LILYGO_TDECK`, `BOARD_THINKNODE_M9` or `BOARD_GENERIC`),
+or pass `-DBOARD=...` to `idf.py` (each such build keeps its `sdkconfig` in its build directory). For a generic board set the display
 SPI pins, controller type, `DISPLAY_MADCTL` (orientation) and color inversion, the SD card mode
 and pins (the card can share the display SPI bus, at the cost of some speed), the audio output
 and the optional GPIO buttons.
@@ -219,7 +253,7 @@ modules (e.g. N8R2) replace `CONFIG_SPIRAM_MODE_OCT=y` with `CONFIG_SPIRAM_MODE_
 | `BLE_HID_ENABLED` | 1 | Bluetooth LE HID host |
 | `BLE_HID_DEBUG` | 0 | log every nearby BLE advertiser while scanning |
 
-The T-Deck volume is `AUDIO_SAMPLE_SHIFT` (6 dB per step). The L2 speaker volume is set by ES8311 register `0x32` in `boardAudioCodecInit()`
+The T-Deck and M9 volume is `AUDIO_SAMPLE_SHIFT` (6 dB per step). The L2 speaker volume is set by ES8311 register `0x32` in `boardAudioCodecInit()`
 ([`esp_board_l2.c`](QuakeESP32S3/main/esp_board_l2.c), 0.5 dB steps, `0xBF` = 0 dB; the
 default is -14 dB).
 
