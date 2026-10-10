@@ -115,7 +115,7 @@ CVARDECLEXT(cl_name, "player", true, false, CV_STRING);
 #endif
 CVARDECLEXT(cl_color, "0", true, false, CV_BYTE);
 
-CVARDECLEXT(showfps, "0", false, false, CV_BYTE);
+CVARDECLEXT(showfps, "0", true, false, CV_BYTE);
 
 
 CVARDECLEXT(cl_shownet, "0", false, false, CV_BYTE);	// can be 0, 1, or 2

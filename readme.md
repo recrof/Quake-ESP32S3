@@ -30,7 +30,8 @@ technical background of the engine is described in the next-hack articles:
 - Sound: 8 bit stereo, 11025 Hz; static, ambient and dynamic sounds.
 - Console with cheats, options with key remapping, savegames with full game state.
 - Touch screen controls with multi-touch; Bluetooth LE keyboards, mice and gamepads.
-- About 41-42 fps in the timedemos on the Wio Tracker L2 (ESP32-S3 at 240 MHz, both cores).
+- About 41-42 fps in the timedemos on the Wio Tracker L2 (ESP32-S3 at 240 MHz, both cores); frame
+  rate counter in Options → Show FPS (or `showfps 1` in the console).
 
 ## Limitations
 

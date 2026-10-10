@@ -1294,7 +1294,8 @@ SetVisibilityByPassages ();
    if (showfps)
    {
        snprintf(frameratestring, sizeof(frameratestring), "%u.%u", (unsigned int) _g->fps10/10, (unsigned int) _g->fps10 % 10);
-       Draw_String(0, DRAW_BUFFER_HEIGHT - 8, frameratestring);
+       // top right corner of the 3D view
+       Draw_String(SCREEN_WIDTH - 8 * strlen(frameratestring), 0, frameratestring);
    }
 }
 

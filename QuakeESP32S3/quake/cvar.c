@@ -199,7 +199,7 @@ CVARDECL(cl_name, "player", true, false, CV_STRING);
 #endif
 CVARDECL(cl_color, "0", true, false, CV_BYTE);
 
-CVARDECL(showfps, "0", false, false, CV_BYTE);
+CVARDECL(showfps, "0", true, false, CV_BYTE);
 
 //CVARDECL(cl_shownet, "0", false, false, CV_BYTE);	// can be 0, 1, or 2
 CVARDECL(cl_nolerp, "0", false, false, CV_BYTE);
@@ -382,7 +382,7 @@ const cvar_t cvar_vars[] =
 #endif
     CVARDEF(cl_color, "0", true, false, CV_BYTE),
 
-    CVARDEF(showfps, "0", false, false, CV_BYTE),
+    CVARDEF(showfps, "0", true, false, CV_BYTE),
 
     //CVARDEF(cl_shownet,"0", false, false, CV_BYTE),	// can be 0, 1, or 2
     CVARDEF(cl_nolerp,"0", false, false, CV_BYTE),

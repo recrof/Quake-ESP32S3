@@ -1149,6 +1149,8 @@ again:
 #endif
 
 #define SLIDER_RANGE  10
+// ESP32: the "Video Options" item (no video modes here) is a "Show FPS" checkbox
+#define SHOW_FPS_OPTION ESP_PLATFORM
 
 int options_cursor;
 
@@ -1244,6 +1246,11 @@ void M_AdjustSliders(int dir)
         case 11:  // lookstrafe
             Cvar_SetValue("lookstrafe", !lookstrafe);
             break;
+#if SHOW_FPS_OPTION
+        case 12:  // show fps
+            Cvar_SetValue("showfps", !showfps);
+            break;
+#endif
 
 #ifdef _WIN32_NO_SDL
   case 13:  // _windowed_mouse
@@ -1329,8 +1336,13 @@ void M_Options_Draw(void)
     M_Print(16, 120, "            Lookstrafe");
     M_DrawCheckbox(220, 120, lookstrafe);
 
+#if SHOW_FPS_OPTION
+    M_Print(16, 128, "              Show FPS");
+    M_DrawCheckbox(220, 128, showfps);
+#else
     if (vid_menudrawfn)
         M_Print(16, 128, "         Video Options");
+#endif
 
 #ifdef _WIN32_NO_SDL
   if (modestate == MS_WINDOWED)
@@ -1375,9 +1387,11 @@ void M_Options_Key(int k)
                     settingsModified = true;
                     Cbuf_AddText("exec default.cfg\nwait 10\n");  // note: wait added as temporary workaround. To investigate why this would lead to lock out.
                     break;
+#if !SHOW_FPS_OPTION
                 case 12:
                     M_Menu_Video_f();
                     break;
+#endif
                 default:
                     M_AdjustSliders(1);
                     break;
@@ -1407,7 +1421,7 @@ void M_Options_Key(int k)
             break;
     }
 
-    if (options_cursor == 12 && vid_menudrawfn == NULL)
+    if (options_cursor == 12 && vid_menudrawfn == NULL && !SHOW_FPS_OPTION)
     {
         if (k == K_UPARROW)
             options_cursor = 11;

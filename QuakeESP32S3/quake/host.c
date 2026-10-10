@@ -844,11 +844,26 @@ void _Host_Frame(float time)
     uint32_t timeTaken = lastTime;
     lastTime = I_GetTimeMicrosecs();
     timeTaken = lastTime - timeTaken;
+#if ESP_PLATFORM
+    // frame rate * 10, averaged over half a second (a value per frame flickers)
+    {
+        static uint32_t fpsTime, fpsFrames;
+        fpsTime += timeTaken;
+        fpsFrames++;
+        if (fpsTime >= 500000)
+        {
+            _g->fps10 = (fpsFrames * 10000000.0f / fpsTime) + 0.5f;
+            fpsTime = 0;
+            fpsFrames = 0;
+        }
+    }
+#else
     if (timeTaken)
     {
         // calculate the frame rate * 10 and approximate at the closest integer
         _g->fps10 = (10000000.0f / timeTaken) + 0.5f;
     }
+#endif
 #define PRITNTIMES !ESP_PLATFORM     // printing each frame on the ESP32 console would slow down the game
 #if PRITNTIMES
     printf("%u\r", (unsigned int) timeTaken);
