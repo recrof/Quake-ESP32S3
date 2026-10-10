@@ -19,6 +19,7 @@
 #define BOARD_WIO_TRACKER_L2            1       // Seeed Wio Tracker L2 / L2 Pro
 #define BOARD_LILYGO_TDECK              2       // LilyGO T-Deck / T-Deck Plus
 #define BOARD_THINKNODE_M9              3       // Elecrow ThinkNode M9
+#define BOARD_XIAO_ESP32S3              4       // Seeed XIAO ESP32S3 + 2.8" ILI9341 module with microSD
 // Also selectable at build time: idf.py -B build-tdeck -DBOARD=BOARD_LILYGO_TDECK build
 #ifndef BOARD
 #define BOARD                           BOARD_WIO_TRACKER_L2
@@ -227,6 +228,75 @@
 #define BUTTON_PIN_JUMP                 -1
 #define BUTTON_PIN_WEAPON               -1
 #define BUTTON_PIN_MENU                 -1
+
+#elif BOARD == BOARD_XIAO_ESP32S3
+// -----------------------------------------------------------------------------
+// Seeed XIAO ESP32S3 (8 MB flash, 8 MB octal PSRAM) + 2.8" 320x240 ILI9341 SPI
+// module with a microSD slot (MSP2806/MSP2807): the SD card shares the display
+// bus. Build with -DBOARD=BOARD_XIAO_ESP32S3, which also applies
+// sdkconfig.defaults.xiao (8 MB flash). See esp_board_xiao.c.
+//
+// | Module pin           | XIAO pin | GPIO |
+// |----------------------|----------|------|
+// | SCK + SD_SCK         | D8       | 7    |
+// | SDI (MOSI) + SD_MOSI | D10      | 9    |
+// | SD_MISO              | D9       | 8    |
+// | SDO (MISO) of the LCD| not connected   |
+// | CS (LCD)             | D0       | 1    |
+// | DC/RS                | D1       | 2    |
+// | SD_CS                | D2       | 3    |
+// | RESET                | D3       | 4    |
+// | LED (backlight)      | 3V3             |
+// -----------------------------------------------------------------------------
+#define DISPLAY_CONTROLLER              DISPLAY_CONTROLLER_ILI9341
+#define DISPLAY_SPI_HOST                SPI2_HOST
+#define DISPLAY_SPI_CLOCK_HZ            (40 * 1000 * 1000)
+#define DISPLAY_PIN_MOSI                9
+#define DISPLAY_PIN_SCLK                7
+#define DISPLAY_PIN_CS                  1
+#define DISPLAY_PIN_DC                  2
+#define DISPLAY_PIN_RST                 4
+#define DISPLAY_PIN_BACKLIGHT           -1
+#define DISPLAY_BACKLIGHT_ON_LEVEL      1
+#define DISPLAY_MADCTL                  0x28    // landscape (MV), BGR
+#define DISPLAY_INVERT_COLORS           0
+#define DISPLAY_X_OFFSET                0
+#define DISPLAY_Y_OFFSET                0
+
+// SD card on the display SPI bus
+#define SD_MODE                         SD_MODE_SPI
+#define SD_SPI_HOST                     SPI2_HOST
+#define SD_SPI_CLOCK_KHZ                40000   // 20000 is used if mounting fails
+#define SD_SDMMC_CLOCK_KHZ              20000   // unused
+#define SD_PIN_MOSI                     9
+#define SD_PIN_MISO                     8
+#define SD_PIN_SCLK                     7
+#define SD_PIN_CS                       3       // strapping pin (JTAG source), harmless unless its eFuse is burned
+#define SD_PIN_D1                       -1
+#define SD_PIN_D2                       -1
+#define SD_PIN_D3                       -1
+
+#define AUDIO_OUTPUT                    AUDIO_OUTPUT_NONE
+#define AUDIO_PIN_MCLK                  -1
+#define AUDIO_PIN_BCLK                  -1
+#define AUDIO_PIN_WS                    -1
+#define AUDIO_PIN_DOUT                  -1
+#define AUDIO_PDM_PIN_CLK               -1
+
+// XIAO ESP32S3 Sense: the SD slot of the camera board is on D8/D9/D10 with its
+// CS on GPIO21 (also the user LED): kept high, so that card stays off the bus.
+#define BOARD_PIN_SENSE_SD_CS           21
+
+// The only button is BOOT (GPIO0): menu / escape. Play with a Bluetooth LE
+// gamepad or keyboard; more buttons can go on D4-D7 (GPIO5, 6, 43, 44).
+#define BUTTON_PIN_UP                   -1
+#define BUTTON_PIN_DOWN                 -1
+#define BUTTON_PIN_LEFT                 -1
+#define BUTTON_PIN_RIGHT                -1
+#define BUTTON_PIN_FIRE                 -1
+#define BUTTON_PIN_JUMP                 -1
+#define BUTTON_PIN_WEAPON               -1
+#define BUTTON_PIN_MENU                 0
 
 #else
 // -----------------------------------------------------------------------------

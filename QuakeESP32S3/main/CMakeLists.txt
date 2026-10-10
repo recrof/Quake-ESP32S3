@@ -20,6 +20,7 @@ idf_component_register(
         esp_board_l2.c
         esp_board_tdeck.c
         esp_board_m9.c
+        esp_board_xiao.c
         esp_printf.c
     INCLUDE_DIRS
         port

@@ -6,7 +6,9 @@ Quake** on the [Seeed Wio Tracker L2 / L2 Pro](https://wiki.seeedstudio.com/mesh
 with its touch screen, speaker and microSD card, and on the
 [LilyGO T-Deck](https://github.com/Xinyuan-LilyGO/T-Deck) with its keyboard and trackball, and on the
 [Elecrow ThinkNode M9](https://www.elecrow.com/wiki/ThinkNode_M9_Meshtastic_Communication_Terminal_with_Full_Keyboard.html)
-with its keypad. Bluetooth LE keyboards, mice and gamepads are supported on all of them. Other ESP32-S3 boards with PSRAM, a 320x240 SPI display and an SD card can be
+with its keypad, and on a [Seeed XIAO ESP32S3](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/)
+with a [2.8" ILI9341 SPI module](https://done.land/components/humaninterface/display/tft/ili9341/2.8inch320x240/)
+(MSP2806/MSP2807, with microSD slot). Bluetooth LE keyboards, mice and gamepads are supported on all of them. Other ESP32-S3 boards with PSRAM, a 320x240 SPI display and an SD card can be
 configured in [`board_config.h`](QuakeESP32S3/main/board_config.h).
 
 Based on WinQuake/SDLQuake by id Software, MG24 port by Nicola Wrachien (next-hack). The
@@ -28,7 +30,7 @@ technical background of the engine is described in the next-hack articles:
 - Sound: 8 bit stereo, 11025 Hz; static, ambient and dynamic sounds.
 - Console with cheats, options with key remapping, savegames with full game state.
 - Touch screen controls with multi-touch; Bluetooth LE keyboards, mice and gamepads.
-- About 18-22 fps on the Wio Tracker L2, the T-Deck and the ThinkNode M9 (ESP32-S3 at 240 MHz).
+- About 18-22 fps on the Wio Tracker L2, the T-Deck, the ThinkNode M9 and the XIAO ESP32S3 (ESP32-S3 at 240 MHz).
 
 ## Limitations
 
@@ -69,15 +71,39 @@ Same as for the L2, with the M9 build (`idf.py -B build-m9 -DBOARD=BOARD_THINKNO
 The M9 USB port is a CH340 USB-serial bridge: flashing resets the board into download mode by
 itself (use `-b 460800`: faster baud rates may fail), and the serial console is on it at 115200.
 
+## Quick start (XIAO ESP32S3 + ILI9341 module)
+
+Wire the module as below, then do as for the L2 with the XIAO build
+(`idf.py -B build-xiao -DBOARD=BOARD_XIAO_ESP32S3 build`).
+
+| Module pin | XIAO pin | GPIO |
+|---|---|---|
+| VCC | 3V3 | – |
+| GND | GND | – |
+| SCK + SD_SCK | D8 | 7 |
+| SDI (MOSI) + SD_MOSI | D10 | 9 |
+| SD_MISO | D9 | 8 |
+| SDO (MISO) of the LCD | not connected | – |
+| CS (LCD) | D0 | 1 |
+| DC/RS | D1 | 2 |
+| SD_CS | D2 | 3 |
+| RESET | D3 | 4 |
+| LED (backlight) | 3V3 | – |
+
+There is no sound and the only button is BOOT (menu): play with a Bluetooth LE gamepad or
+keyboard. GPIO buttons can be added on D4-D7 (GPIO 5, 6, 43, 44) with the `BUTTON_PIN_*` settings.
+On the XIAO ESP32S3 Sense, the camera board's SD slot is on the same SPI lines: its CS (GPIO21)
+is kept high, so a card in that slot does not interfere.
+
 ## Hardware
 
-| Item | Wio Tracker L2 | T-Deck | ThinkNode M9 | Generic board |
-|---|---|---|---|---|
-| MCU | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3 with PSRAM (8 MB recommended, e.g. N8R8 / N16R8), flash ≥ 4 MB |
-| Display | 3.2" 320x240 NV3031B, QSPI | 2.8" 320x240 ST7789, SPI | 2.4" 320x240 ST7789, SPI | 320x240 SPI LCD, ST7789 or ILI9341 |
-| Storage | microSD, SDMMC 1-bit | microSD, SPI (shared with the display) | microSD, SPI (shared with the display) | SD card (FAT), SPI or SDMMC (1/4 bit) |
-| Audio | ES8311 codec + speaker amplifier | MAX98357A I2S amplifier | passive buzzer, driven with PDM | optional I2S DAC/amplifier (MAX98357A, PCM5102…) or PDM on one pin |
-| Input | GT911 touch screen, BOOT and WAKE buttons, Bluetooth LE | keyboard, trackball, Bluetooth LE | keypad, Bluetooth LE | Bluetooth LE, optional GPIO buttons |
+| Item | Wio Tracker L2 | T-Deck | ThinkNode M9 | XIAO ESP32S3 + module | Generic board |
+|---|---|---|---|---|---|
+| MCU | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 16 MB flash, 8 MB octal PSRAM | ESP32-S3, 8 MB flash, 8 MB octal PSRAM | ESP32-S3 with PSRAM (8 MB recommended, e.g. N8R8 / N16R8), flash ≥ 4 MB |
+| Display | 3.2" 320x240 NV3031B, QSPI | 2.8" 320x240 ST7789, SPI | 2.4" 320x240 ST7789, SPI | 2.8" 320x240 ILI9341, SPI | 320x240 SPI LCD, ST7789 or ILI9341 |
+| Storage | microSD, SDMMC 1-bit | microSD, SPI (shared with the display) | microSD, SPI (shared with the display) | microSD, SPI (shared with the display) | SD card (FAT), SPI or SDMMC (1/4 bit) |
+| Audio | ES8311 codec + speaker amplifier | MAX98357A I2S amplifier | passive buzzer, driven with PDM | none | optional I2S DAC/amplifier (MAX98357A, PCM5102…) or PDM on one pin |
+| Input | GT911 touch screen, BOOT and WAKE buttons, Bluetooth LE | keyboard, trackball, Bluetooth LE | keypad, Bluetooth LE | BOOT button, Bluetooth LE | Bluetooth LE, optional GPIO buttons |
 
 On the L2, power rails, display reset and the touch controller are driven through the PCA9555
 GPIO expander, and the backlight through the LP5814 LED driver, all on the I2C bus (SDA 47,
@@ -220,6 +246,7 @@ idf.py set-target esp32s3
 idf.py build flash monitor                                        # Wio Tracker L2
 idf.py -B build-tdeck -DBOARD=BOARD_LILYGO_TDECK build flash monitor   # T-Deck
 idf.py -B build-m9 -DBOARD=BOARD_THINKNODE_M9 build flash monitor      # ThinkNode M9
+idf.py -B build-xiao -DBOARD=BOARD_XIAO_ESP32S3 build flash monitor    # XIAO ESP32S3 + ILI9341 module
 ```
 
 To create the merged image for a release:
@@ -235,7 +262,7 @@ not been tested.
 ### Configuration
 
 Select the board with `BOARD` in [`board_config.h`](QuakeESP32S3/main/board_config.h)
-(`BOARD_WIO_TRACKER_L2` by default, `BOARD_LILYGO_TDECK`, `BOARD_THINKNODE_M9` or `BOARD_GENERIC`),
+(`BOARD_WIO_TRACKER_L2` by default, `BOARD_LILYGO_TDECK`, `BOARD_THINKNODE_M9`, `BOARD_XIAO_ESP32S3` or `BOARD_GENERIC`),
 or pass `-DBOARD=...` to `idf.py` (each such build keeps its `sdkconfig` in its build directory). For a generic board set the display
 SPI pins, controller type, `DISPLAY_MADCTL` (orientation) and color inversion, the SD card mode
 and pins (the card can share the display SPI bus, at the cost of some speed), the audio output

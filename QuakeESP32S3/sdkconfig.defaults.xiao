@@ -1,0 +1,2 @@
+# Seeed XIAO ESP32S3: 8 MB flash (the octal PSRAM is the same as on the other boards)
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
