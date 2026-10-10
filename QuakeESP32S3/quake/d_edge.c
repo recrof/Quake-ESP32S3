@@ -568,8 +568,12 @@ DRAWSURF_SEC void D_DrawSurfaces(void)
 #endif
                 D_CalcGradients(pface, miplevel);
                 espan_t *span = getSurfSpans(s, 0);
+#if ESP_PLATFORM
+                D_DrawSpans8AndZ(span);     // on both cores
+#else
                 D_DrawSpans8(span);
                 D_DrawZSpans(span);
+#endif
 
                 if (s->insubmodel && ENABLESUBMODEL)
                 {

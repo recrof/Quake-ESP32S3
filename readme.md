@@ -30,7 +30,7 @@ technical background of the engine is described in the next-hack articles:
 - Sound: 8 bit stereo, 11025 Hz; static, ambient and dynamic sounds.
 - Console with cheats, options with key remapping, savegames with full game state.
 - Touch screen controls with multi-touch; Bluetooth LE keyboards, mice and gamepads.
-- About 18-22 fps on the Wio Tracker L2, the T-Deck, the ThinkNode M9 and the XIAO ESP32S3 (ESP32-S3 at 240 MHz).
+- About 41-42 fps in the timedemos on the Wio Tracker L2 (ESP32-S3 at 240 MHz, both cores).
 
 ## Limitations
 
@@ -303,11 +303,28 @@ default is -14 dB).
 | Savegames/settings at the end of the SPI flash | `quakenvm` flash partition, mapped at the same virtual address |
 | Internal flash used as model/skin cache | 1 MB PSRAM buffer (`INTERNAL_FLASH_CACHE_SIZE`) |
 | 20 kB auxiliary radio RAM (`AUX_SECTION`) | PSRAM |
-| ARM inline assembly in the rasterizer | the portable C code paths (the ones used by the MG24 Windows build) |
+| ARM inline assembly in the rasterizer | the portable C code paths (the ones used by the MG24 Windows build), except the lit wall spans (texture and light map sampled per pixel, as there is no surface cache): a C loop giving the same pixels as the assembly code, and the rows of each surface split between the two cores ([`esp_parallel.c`](QuakeESP32S3/main/esp_parallel.c)) |
 | Display LDMA with progressive refresh | display task on core 0 converts the 8-bit frame through the palette (stretching it to 240 lines and drawing the touch overlay) and sends it by SPI/QSPI DMA, updating the same "lines sent" counter the renderer waits on |
 | Audio DAC + LDMA ring buffer | audio task playing the same ring buffer through I2S |
 
-The game runs on core 1 and never yields; display, audio, touch and Bluetooth run on core 0.
+The game runs on core 1 and never yields; display, audio, touch and Bluetooth run on core 0. While
+the walls are drawn, a low priority worker task on core 0 draws the odd rows of each surface.
+
+Flash and PSRAM run at 120 MHz (about 6% faster than 80 MHz). ESP-IDF marks octal PSRAM at
+120 MHz as experimental: if the game crashes at random once warm, set `CONFIG_ESPTOOLPY_FLASHFREQ_80M`
+and `CONFIG_SPIRAM_SPEED_80M` in `sdkconfig.defaults` and delete the build directory.
+
+### Benchmark
+
+`idf.py -B build-bench -DFORCE_TIME_DEMO=2 build flash monitor` (add `-DBOARD=...`) plays the
+demo loop as timedemos and prints the result of each demo (`970 frames 23097 ms 41.995 fps`).
+
+| Wio Tracker L2, timedemo | demo1 | demo2 | demo3 |
+|---|---|---|---|
+| before (80 MHz, one core) | 23.6 | 23.9 | 23.3 |
+| 120 MHz flash and PSRAM | 25.1 | 25.4 | 24.7 |
+| C lit span loop | 34.3 | 34.7 | 34.1 |
+| spans on both cores, FPU reciprocal | 42.0 | 42.6 | 42.1 |
 
 ## License
 

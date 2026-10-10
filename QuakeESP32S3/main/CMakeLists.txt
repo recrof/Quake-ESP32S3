@@ -21,6 +21,7 @@ idf_component_register(
         esp_board_tdeck.c
         esp_board_m9.c
         esp_board_xiao.c
+        esp_parallel.c
         esp_printf.c
     INCLUDE_DIRS
         port
@@ -55,5 +56,9 @@ set_source_files_properties(${QUAKE_DIR}/d_scan.c ${QUAKE_DIR}/d_polyse.c PROPER
 # Board selection from the command line: idf.py -DBOARD=BOARD_LILYGO_TDECK ...
 if(DEFINED BOARD)
     target_compile_definitions(${COMPONENT_LIB} PRIVATE BOARD=${BOARD})
+endif()
+# Benchmark: idf.py -DFORCE_TIME_DEMO=2 ... plays the demo loop as timedemos (fps on the console)
+if(DEFINED FORCE_TIME_DEMO)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE FORCE_TIME_DEMO=${FORCE_TIME_DEMO})
 endif()
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error=unused-variable -Wno-error=unused-function)

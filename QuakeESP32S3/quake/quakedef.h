@@ -36,7 +36,9 @@
 #define FORCE_START_GAME_IF_NO_DEMO     1           // if 1, and ENABLE_DEMO is 0, then it will start a new game by default
 #define START_MAP                       "e1m1"      // start map of the new game e.g. "e1m4" or "start"
 #define START_SKILL                     1           // start skill of the new game. 0 = easy, 1 = normal, 2 = hard, 3 = nightmare.
+#ifndef FORCE_TIME_DEMO
 #define FORCE_TIME_DEMO                 0           // if 1, it will force timedemo. Note that ENABLE_DEMO shall be 1 as well
+#endif                                              // 2: every demo of the demo loop is a timedemo (benchmark: idf.py -DFORCE_TIME_DEMO=2)
 #define TIME_DEMO_NAME                  "demo3"     // timedemo name. We use timedemo 3 for comparison with: https://thandor.net/benchmark/33
 
 #define RETAIL_QUAKE_PAK_SUPPORT        1           // 1 will support the full retail version

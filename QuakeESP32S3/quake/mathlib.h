@@ -78,6 +78,26 @@ int GreatestCommonDivisor(int i1, int i2);
 int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct mplane_s *plane);
 float anglemod(float a);
 
+// 1 / x. ESP32-S3: the FPU reciprocal approximation and two Newton steps (a float
+// division is a software routine in ROM). The result can differ from 1.0f / x in
+// the last bit.
+static inline float R_Recip(float x)
+{
+#if ESP_PLATFORM && defined(__XTENSA__)
+    float r, e, one;
+    __asm__ ("recip0.s %0, %1" : "=f"(r) : "f"(x));
+    __asm__ ("const.s %0, 1" : "=f"(one));
+    e = one;
+    __asm__ ("msub.s %0, %1, %2" : "+f"(e) : "f"(x), "f"(r));
+    __asm__ ("maddn.s %0, %1, %2" : "+f"(r) : "f"(r), "f"(e));
+    e = one;
+    __asm__ ("msub.s %0, %1, %2" : "+f"(e) : "f"(x), "f"(r));
+    __asm__ ("maddn.s %0, %1, %2" : "+f"(r) : "f"(r), "f"(e));
+    return r;
+#else
+    return 1.0f / x;
+#endif
+}
 static inline void CrossProduct(vec3_t v1, vec3_t v2, vec3_t cross)
 {
     cross[0] = v1[1] * v2[2] - v1[2] * v2[1];

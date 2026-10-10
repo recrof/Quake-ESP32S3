@@ -351,7 +351,7 @@ void CL_PlayDemo_f(void)
 // open the demo file
 //
 
-#if FORCE_TIME_DEMO
+#if FORCE_TIME_DEMO == 1
     strcpy(name, TIME_DEMO_NAME);
 #else
     strcpy (name, Cmd_Argv(1));
@@ -409,7 +409,9 @@ void CL_PlayDemo_f(void)
     //
     if (!_g->cl_lightstyle)
         _g->cl_lightstyle = Z_Calloc(sizeof(*_g->cl_lightstyle), MAX_LIGHTSTYLES, PU_STATIC, 0);
-    _g->cls.timedemo = FORCE_TIME_DEMO;
+    _g->cls.timedemo = FORCE_TIME_DEMO != 0;
+    _g->cls.td_startframe = host_framecount;
+    _g->cls.td_lastframe = -1;
 #else
 
     if (cmd_source != src_command)

@@ -99,6 +99,9 @@ extern surfcache_t *d_initial_rover;
 //extern fixed16_t	bbextents, bbextentt;
 
 void D_DrawSpans8(espan_t *pspans);
+#if ESP_PLATFORM
+void D_DrawSpans8AndZ(espan_t *pspans);
+#endif
 void D_DrawSpans16(espan_t *pspans);
 void D_DrawZSpans(espan_t *pspans);
 void Turbulent8(espan_t *pspan);

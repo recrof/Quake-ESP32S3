@@ -32,6 +32,15 @@
 #include "quakedef.h"
 #include "r_local.h"
 #include "d_local.h"
+#if ESP_PLATFORM
+#include "esp_parallel.h"
+#endif
+// 0x10000 / zi (16.16 fixed point z). ESP32: with the FPU reciprocal (R_Recip)
+#if ESP_PLATFORM
+#define D_FIXED_Z(zi) ((float) 0x10000 * R_Recip(zi))
+#else
+#define D_FIXED_Z(zi) ((float) 0x10000 / (zi))
+#endif
 
 static unsigned char *r_turb_pbase, *r_turb_pdest;
 static fixed16_t r_turb_s, r_turb_t, r_turb_sstep, r_turb_tstep;
@@ -331,7 +340,7 @@ void Turbulent8(espan_t *pspan)
         sdivz = _g->d_sdivzorigin + dv * _g->d_sdivzstepv + du * _g->d_sdivzstepu;
         tdivz = _g->d_tdivzorigin + dv * _g->d_tdivzstepv + du * _g->d_tdivzstepu;
         zi = _g->d_ziorigin + dv * _g->d_zistepv + du * _g->d_zistepu;
-        z = (float) 0x10000 / zi;  // prescale to 16.16 fixed-point
+        z = D_FIXED_Z(zi);  // prescale to 16.16 fixed-point
 
         r_turb_s = (int) (sdivz * z) + _g->sadjust;
 #if NO_FIXED_BBEXTENT
@@ -372,7 +381,7 @@ void Turbulent8(espan_t *pspan)
                 sdivz += sdivz16stepu;
                 tdivz += tdivz16stepu;
                 zi += zi16stepu;
-                z = (float) 0x10000 / zi;  // prescale to 16.16 fixed-point
+                z = D_FIXED_Z(zi);  // prescale to 16.16 fixed-point
 
                 snext = (int) (sdivz * z) + _g->sadjust;
 #if NO_FIXED_BBEXTENT
@@ -411,7 +420,7 @@ void Turbulent8(espan_t *pspan)
                 sdivz += _g->d_sdivzstepu * spancountminus1;
                 tdivz += _g->d_tdivzstepu * spancountminus1;
                 zi += _g->d_zistepu * spancountminus1;
-                z = (float) 0x10000 / zi;  // prescale to 16.16 fixed-point
+                z = D_FIXED_Z(zi);  // prescale to 16.16 fixed-point
                 snext = (int) (sdivz * z) + _g->sadjust;
 #if NO_FIXED_BBEXTENT
                 if (snext > _g->bbextents)
@@ -1362,8 +1371,96 @@ defineR_GetSurfacePixelForMiplevelPower2(2);
 defineR_GetSurfacePixelForMiplevelPower2(3);
 #endif
 #endif
+#if ESP_PLATFORM && !PRE_LIGHT_SURFACES && NEW_BILINEAR_INTERPOLATION && TEST_SIMD
+// ESP32: the lit span loop (the MG24 uses ARM assembly). Same result as the
+// R_GetSurfacePixel* emulation of the assembly code above, but the surface data
+// is kept in registers (the byte stores would otherwise force the compiler to
+// reload sdd after each pixel) and the mip level and texture type are resolved
+// once per span. s and t are 10.6 fixed point, wrapping at 16 bits like the
+// SADD16 of the assembly code.
+#define defineDrawLitSpan(miplevel, power2)                                                     \
+__attribute__((noinline)) static void drawLitSpan##miplevel##_##power2(uint8_t *pdest,          \
+    int count, int s, int t, int sstep, int tstep)                                              \
+{                                                                                               \
+    const int shift = mipShift(miplevel), mask = mipMask(miplevel);                            \
+    const int *blocklights = (const int *) sdd.blocklights;                                     \
+    const int lightwidth = sdd.r_lightwidth;                                                    \
+    const uint8_t *source = sdd.r_source;                                                       \
+    const uint8_t *colormap = sdd.colormap;                                                     \
+    const int width = sdd.r_texture_width, height = sdd.r_texture_height;                      \
+    const uint32_t qcs = sdd.qcs, qct = sdd.qct;                                                \
+    const int lightMask = r_fullbright ? 0 : 0xFF00;                                            \
+    int s6 = s >> (16 - SPAN_PRECISION), t6 = t >> (16 - SPAN_PRECISION);                       \
+    const int s6step = sstep >> (16 - SPAN_PRECISION), t6step = tstep >> (16 - SPAN_PRECISION); \
+    uint8_t *pend = pdest + count;                                                              \
+    do                                                                                          \
+    {                                                                                           \
+        int ss = (int16_t) s6, tt = (int16_t) t6;                                               \
+        int si = ss >> SPAN_PRECISION, ti = tt >> SPAN_PRECISION;                               \
+        const int *lightptr = blocklights + (si >> shift) + lightwidth * (ti >> shift);         \
+        int l0 = lightptr[0], l1 = lightptr[1];                                                 \
+        /* bilinear interpolation: a * (one - d) + b * d == (a << shift) + (b - a) * d */       \
+        int deltaT = ti & mask;                                                                 \
+        int a0 = (int16_t) l0, a1 = (int16_t) l1;                                               \
+        int lightLeft = (a0 << shift) + ((l0 >> 16) - a0) * deltaT;                             \
+        int lightRight = (a1 << shift) + ((l1 >> 16) - a1) * deltaT;                            \
+        int light = (lightLeft << shift) + (lightRight - lightLeft) * (si & mask);              \
+        int x, y;                                                                               \
+        if (power2)                                                                             \
+        {                                                                                       \
+            y = ti & (height - 1);                                                              \
+            x = si & (width - 1);                                                               \
+        }                                                                                       \
+        else                                                                                    \
+        {                                                                                       \
+            y = ((uint64_t) (qct * (uint32_t) (tt << (16 - SPAN_PRECISION))) * height) >> 32;   \
+            x = ((uint64_t) (qcs * (uint32_t) (ss << (16 - SPAN_PRECISION))) * width) >> 32;    \
+        }                                                                                       \
+        *pdest++ = colormap[((light >> shift) & lightMask) + source[y * width + x]];            \
+        s6 += s6step;                                                                           \
+        t6 += t6step;                                                                           \
+    } while (pdest < pend);                                                                     \
+}
+defineDrawLitSpan(0, 1)
+defineDrawLitSpan(1, 1)
+defineDrawLitSpan(2, 1)
+defineDrawLitSpan(3, 1)
+defineDrawLitSpan(0, 0)
+defineDrawLitSpan(1, 0)
+defineDrawLitSpan(2, 0)
+defineDrawLitSpan(3, 0)
+static void drawLitSpan(uint8_t *pdest, int count, int s, int t, int sstep, int tstep)
+{
+    if (!sdd.textureType)
+    {
+        switch (r_drawsurf.surfmip & 3)
+        {
+            case 0: drawLitSpan0_1(pdest, count, s, t, sstep, tstep); break;
+            case 1: drawLitSpan1_1(pdest, count, s, t, sstep, tstep); break;
+            case 2: drawLitSpan2_1(pdest, count, s, t, sstep, tstep); break;
+            default: drawLitSpan3_1(pdest, count, s, t, sstep, tstep); break;
+        }
+    }
+    else
+    {
+        switch (r_drawsurf.surfmip & 3)
+        {
+            case 0: drawLitSpan0_0(pdest, count, s, t, sstep, tstep); break;
+            case 1: drawLitSpan1_0(pdest, count, s, t, sstep, tstep); break;
+            case 2: drawLitSpan2_0(pdest, count, s, t, sstep, tstep); break;
+            default: drawLitSpan3_0(pdest, count, s, t, sstep, tstep); break;
+        }
+    }
+}
+#define ESP_LIT_SPAN 1
+#endif
 #define MAX_SPAN_COUNT 32    // next-hack: Quake originally used 8, which gives more precise rendering. With 8, you lose on average 2 fps (so timedemo 3 will run on 26.1 avg fps). We prefer speed over accuracy, which is barely noticeable.
+#if ESP_PLATFORM
+// parity: 0 even rows, 1 odd rows, -1 all (see D_DrawSpans8 below)
+static void D_DrawSpans8Rows(espan_t *pspan, int parity)
+#else
 DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
+#endif
 #define MAX_SPAN_COUNT2 64
 #define DYNAMIC_MAX_SPAN_COUNT 0
 {
@@ -1399,7 +1496,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
 		sdivz = _g->d_sdivzorigin + dv*_g->d_sdivzstepv + du*_g->d_sdivzstepu;
 		tdivz = _g->d_tdivzorigin + dv*_g->d_tdivzstepv + du*_g->d_tdivzstepu;
 		zi = _g->d_ziorigin + dv*_g->d_zistepv + du*_g->d_zistepu;
-        z = (float)0x10000 / zi;  // prescale to 16.16 fixed-point
+        z = D_FIXED_Z(zi);  // prescale to 16.16 fixed-point
 
         pdest = (unsigned char *)((byte *)_g->d_viewbuffer + (screenwidth * _g->basespanV_p[spanIndex]) + pspan->u);
 
@@ -1439,7 +1536,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
                     sdivz += sdivz8stepu;
                     tdivz += tdivz8stepu;
                     zi += zi8stepu;
-                    z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
+                    z = D_FIXED_Z(zi);	// prescale to 16.16 fixed-point
 
                     snext = (int)(sdivz * z) + _g->sadjust;
                     if (snext > _g->bbextents)
@@ -1468,7 +1565,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
                     sdivz += _g->d_sdivzstepu * spancountminus1;
                     tdivz += _g->d_tdivzstepu * spancountminus1;
                     zi += _g->d_zistepu * spancountminus1;
-                    z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
+                    z = D_FIXED_Z(zi);	// prescale to 16.16 fixed-point
                     snext = (int)(sdivz * z) + _g->sadjust;
                     if (snext > _g->bbextents)
                         snext = _g->bbextents;
@@ -1506,7 +1603,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
                     sdivz += sdivz8stepu;
                     tdivz += tdivz8stepu;
                     zi += zi8stepu;
-                    z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
+                    z = D_FIXED_Z(zi);	// prescale to 16.16 fixed-point
                     snext = (int)(sdivz * z) + _g->sadjust;
                     if (snext > _g->bbextents)
                         snext = _g->bbextents;
@@ -1532,7 +1629,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
                     sdivz += _g->d_sdivzstepu * spancountminus1;
                     tdivz += _g->d_tdivzstepu * spancountminus1;
                     zi += _g->d_zistepu * spancountminus1;
-                    z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
+                    z = D_FIXED_Z(zi);	// prescale to 16.16 fixed-point
                     snext = (int)(sdivz * z) + _g->sadjust;
                     if (snext > _g->bbextents)
                         snext = _g->bbextents;
@@ -1579,6 +1676,10 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
 #if !ESPANS_HAVE_V
         int spanIndex = pspan - _g->basespan_p;
         dv = (float) _g->basespanV_p[spanIndex];
+#if ESP_PLATFORM
+        if (parity >= 0 && (_g->basespanV_p[spanIndex] & 1) != parity)
+            continue;
+#endif
 
 #else
     dv = (float)pspan->v;
@@ -1589,7 +1690,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
         sdivz = _g->d_sdivzorigin + dv * _g->d_sdivzstepv + du * _g->d_sdivzstepu;
         tdivz = _g->d_tdivzorigin + dv * _g->d_tdivzstepv + du * _g->d_tdivzstepu;
         zi = _g->d_ziorigin + dv * _g->d_zistepv + du * _g->d_zistepu;
-        z = (float) 0x10000 / zi;  // prescale to 16.16 fixed-point
+        z = D_FIXED_Z(zi);  // prescale to 16.16 fixed-point
 #if !ESPANS_HAVE_V
         pdest = (unsigned char*) ((byte*) _g->d_viewbuffer + (screenwidth * _g->basespanV_p[spanIndex]) + pspan->u);
 
@@ -1629,7 +1730,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
                 sdivz += sdivz8stepu;
                 tdivz += tdivz8stepu;
                 zi += zi8stepu;
-                z = (float) 0x10000 / zi;	// prescale to 16.16 fixed-point
+                z = D_FIXED_Z(zi);	// prescale to 16.16 fixed-point
 
                 snext = (int) (sdivz * z) + _g->sadjust;
                 if (snext > _g->bbextents)
@@ -1658,7 +1759,7 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
                 sdivz += _g->d_sdivzstepu * spancountminus1;
                 tdivz += _g->d_tdivzstepu * spancountminus1;
                 zi += _g->d_zistepu * spancountminus1;
-                z = (float) 0x10000 / zi;	// prescale to 16.16 fixed-point
+                z = D_FIXED_Z(zi);	// prescale to 16.16 fixed-point
                 snext = (int) (sdivz * z) + _g->sadjust;
                 if (snext > _g->bbextents)
                     snext = _g->bbextents;
@@ -1807,6 +1908,9 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
                 }
             }
             spancount = 0;
+#elif ESP_LIT_SPAN
+            drawLitSpan(pdest, spancount, s, t, sstep, tstep);
+            pdest += spancount;
 #else
     unsigned int st = PACK16(s >> (16 - SPAN_PRECISION), t >> (16 - SPAN_PRECISION));
     /*if (sstep < 0)
@@ -1898,6 +2002,36 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
     while ((pspan = getNextSpan(pspan, 0)) != _g->basespan_p);
 #endif
 }
+#if ESP_PLATFORM
+// The rows of a surface are split between the two cores: the spans of a surface
+// never overlap, and the drawing state (gradients, sdd, texture, light map) does
+// not change until the surface has been drawn.
+static void D_DrawZSpansRows(espan_t *pspan, int parity);
+static void D_DrawSpans8AndZOdd(void *pspan)
+{
+    D_DrawSpans8Rows(pspan, 1);
+    D_DrawZSpansRows(pspan, 1);
+}
+
+void D_DrawSpans8(espan_t *pspan)
+{
+    D_DrawSpans8Rows(pspan, -1);
+}
+
+// D_DrawSpans8() and D_DrawZSpans()
+void D_DrawSpans8AndZ(espan_t *pspan)
+{
+    if (!parallelPost(D_DrawSpans8AndZOdd, pspan))
+    {
+        D_DrawSpans8Rows(pspan, -1);
+        D_DrawZSpansRows(pspan, -1);
+        return;
+    }
+    D_DrawSpans8Rows(pspan, 0);
+    D_DrawZSpansRows(pspan, 0);
+    parallelFinish();
+}
+#endif
 
 #endif
 
@@ -1908,7 +2042,12 @@ DRAWSURF_SEC void D_DrawSpans8(espan_t *pspan)
  D_DrawZSpans
  =============
  */
+#if ESP_PLATFORM
+// parity: 0 even rows, 1 odd rows, -1 all (see D_DrawSpans8AndZ)
+static void D_DrawZSpansRows(espan_t *pspan, int parity)
+#else
 DRAWSURF_SEC void D_DrawZSpans(espan_t *pspan)
+#endif
 {
     int count, izistep;
     int izi;
@@ -1924,6 +2063,10 @@ DRAWSURF_SEC void D_DrawZSpans(espan_t *pspan)
     {
 #if !ESPANS_HAVE_V
         int spanIndex = pspan - _g->basespan_p;
+#if ESP_PLATFORM
+        if (parity >= 0 && (_g->basespanV_p[spanIndex] & 1) != parity)
+            continue;
+#endif
         dv = (float) _g->basespanV_p[spanIndex];
         pdest = _g->d_pzbuffer + (d_zwidth * _g->basespanV_p[spanIndex]) + pspan->u;
 
@@ -2107,6 +2250,12 @@ DRAWSURF_SEC void D_DrawZSpans(espan_t *pspan)
     while ((pspan = getNextSpan(pspan, 1)) != NULL);
 #endif
 }
+#if ESP_PLATFORM
+void D_DrawZSpans(espan_t *pspan)
+{
+    D_DrawZSpansRows(pspan, -1);
+}
+#endif
 
 #endif
 

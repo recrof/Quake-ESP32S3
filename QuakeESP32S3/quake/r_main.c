@@ -29,6 +29,9 @@
 // r_main.c
 #include "quakedef.h"
 #include "r_local.h"
+#if ESP_PLATFORM
+#include "esp_parallel.h"
+#endif
 
 //define	PASSAGES
 
@@ -1142,7 +1145,15 @@ void R_EdgeDrawing(void)
 #endif
 
     if (!(r_drawpolys | r_drawculledpolys)) // both false, so this is done
+    {
+#if ESP_PLATFORM
+        parallelBegin();    // the spans are drawn by both cores
+#endif
         R_ScanEdges();
+#if ESP_PLATFORM
+        parallelEnd();
+#endif
+    }
 }
 
 /*

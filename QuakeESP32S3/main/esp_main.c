@@ -6,7 +6,8 @@
  *
  * Core usage:
  *  - core 1: the game (Host_Frame loop), never yields.
- *  - core 0: display refresh, audio, Bluetooth.
+ *  - core 0: display refresh, audio, Bluetooth, and half of the wall drawing
+ *    (esp_parallel.c).
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -32,6 +33,7 @@
 #include "display.h"
 #include "keyboard.h"
 #include "esp_board.h"
+#include "esp_parallel.h"
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 #include "driver/usb_serial_jtag.h"
 #endif
@@ -237,6 +239,7 @@ void app_main(void)
     initKeyboard();
     displayPrintln(1, "Starting Bluetooth LE HID host...");
     bleHidInit();
+    parallelInit();
     //
     displayPrintln(1, "Free RAM: internal %u kB, PSRAM %u kB", (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
         (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));

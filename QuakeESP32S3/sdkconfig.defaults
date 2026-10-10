@@ -8,7 +8,14 @@ CONFIG_FREERTOS_HZ=1000
 # ---- Flash / partitions ----
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
-CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+# 120 MHz flash and octal PSRAM: about 6% faster than 80 MHz (the renderer runs from
+# flash and its data is in PSRAM). ESP-IDF marks octal PSRAM at 120 MHz as experimental:
+# the timing is tuned at boot, and a large temperature change can make it fail. If the
+# game crashes at random once warm, use CONFIG_ESPTOOLPY_FLASHFREQ_80M and
+# CONFIG_SPIRAM_SPEED_80M (and delete sdkconfig / the build directory).
+CONFIG_ESPTOOLPY_FLASHFREQ_120M=y
+CONFIG_SPI_FLASH_HPM_ENA=y
+CONFIG_SPI_FLASH_HPM_DC_DISABLE=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
@@ -21,7 +28,8 @@ CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
 # ---- PSRAM (required: PAK block cache + model/skin cache) ----
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
-CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_IDF_EXPERIMENTAL_FEATURES=y
+CONFIG_SPIRAM_SPEED_120M=y
 CONFIG_SPIRAM_USE_MALLOC=y
 CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
 CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
