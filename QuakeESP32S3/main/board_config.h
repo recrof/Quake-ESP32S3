@@ -112,7 +112,7 @@
 // -----------------------------------------------------------------------------
 #define DISPLAY_CONTROLLER              DISPLAY_CONTROLLER_ST7789
 #define DISPLAY_SPI_HOST                SPI2_HOST
-#define DISPLAY_SPI_CLOCK_HZ            (40 * 1000 * 1000)
+#define DISPLAY_SPI_CLOCK_HZ            (80 * 1000 * 1000)  // 40 MHz limits the timedemos to 24-27 fps
 #define DISPLAY_PIN_MOSI                41
 #define DISPLAY_PIN_SCLK                40
 #define DISPLAY_PIN_CS                  12
