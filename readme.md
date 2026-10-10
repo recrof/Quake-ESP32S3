@@ -263,6 +263,7 @@ default is -14 dB).
 |---|---|
 | `QuakeESP32S3/main` | ESP32-S3 platform code: display, SD/PAK access, audio, input, touch, Bluetooth, board support |
 | `QuakeESP32S3/main/port` | headers replacing the MG24 platform headers used by the engine |
+| `QuakeESP32S3/components/esp_hid` | ESP-IDF 5.5.5 `esp_hid` with an upstream fix: without it no BLE HID device works (see its README) |
 | `QuakeESP32S3/quake` | the MG24Quake engine; ESP32 code paths are selected with `ESP_PLATFORM` |
 | `QuakeESP32S3/tools/MCUPackConverter` | PAK converter |
 | `QuakeESP32S3/tools/QuakeCConverter`, `FunctionArrayCreator`, `QTablesGenerator` | MG24Quake tools that generate engine sources (QuakeC progs, field accessors, lookup tables); only needed to change the game code |

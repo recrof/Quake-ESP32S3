@@ -1,6 +1,5 @@
 # ThinkNode M9: the USB port is a CH340 USB-UART bridge on UART0, and GPIO19/20
 # (the native USB pins) are used by the display and the keypad.
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
-CONFIG_ESP_CONSOLE_UART_BAUDRATE_115200=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 CONFIG_USJ_ENABLE_USB_SERIAL_JTAG=n

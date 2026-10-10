@@ -614,6 +614,13 @@ void IN_Move(usercmd_t *cmd)
     float ry = stickRY * sensitivity + my * sensitivity * MOUSE_SCALE;
     _g->cl.viewangles[YAW] -= m_yaw * rx + tdx * TOUCH_YAW_PER_PIXEL * sensitivity / 3;
     _g->cl.viewangles[PITCH] += tdy * TOUCH_PITCH_PER_PIXEL * sensitivity / 3;
+    // The look devices (mouse, right stick, touch, trackball) work like mouse look
+    // (+mlook) in the original game: once the view has been moved, it is not re-centered
+    // when running forward. A drift started by "centerview" is not interrupted.
+    if (_g->cl.nodrift)
+    {
+        V_StopPitchDrift();
+    }
     if (ry || tdy)
     {
         V_StopPitchDrift();

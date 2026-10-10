@@ -157,18 +157,38 @@ static int scanEvent(struct ble_gap_event *event, void *arg)
 // Listener for events of the connection managed by esp_hidh
 static int gapListenerEvent(struct ble_gap_event *event, void *arg)
 {
+    // esp_hidh starts pairing / encryption itself when the connection is established
     switch (event->type)
     {
-        case BLE_GAP_EVENT_CONNECT:
-            if (event->connect.status == 0)
+        case BLE_GAP_EVENT_ENC_CHANGE:
+        {
+            ESP_LOGI(TAG, "Encryption %s (status %d)", event->enc_change.status ? "failed" : "enabled", event->enc_change.status);
+            struct ble_gap_conn_desc desc;
+            bool keyRejected = event->enc_change.status == BLE_HS_ERR_HCI_BASE + BLE_ERR_PINKEY_MISSING ||
+                event->enc_change.status == BLE_HS_ERR_HCI_BASE + BLE_ERR_AUTH_FAIL;
+            if (keyRejected && ble_gap_conn_find(event->enc_change.conn_handle, &desc) == 0 &&
+                isBonded(&desc.peer_id_addr))
             {
-                // HID devices normally require an encrypted link: start pairing / encryption at once.
-                ble_gap_security_initiate(event->connect.conn_handle);
+                // the device has lost our bond (e.g. paired with another host): pair again next time
+                ESP_LOGW(TAG, "Deleting the stale bond");
+                ble_store_util_delete_peer(&desc.peer_id_addr);
             }
             break;
-        case BLE_GAP_EVENT_ENC_CHANGE:
-            ESP_LOGI(TAG, "Encryption %s (status %d)", event->enc_change.status ? "failed" : "enabled", event->enc_change.status);
+        }
+#if BLE_HID_DEBUG
+        case BLE_GAP_EVENT_CONNECT:
+            ESP_LOGI(TAG, "GAP connect status %d", event->connect.status);
             break;
+        case BLE_GAP_EVENT_DISCONNECT:
+            ESP_LOGI(TAG, "GAP disconnect reason 0x%x", event->disconnect.reason);
+            break;
+        case BLE_GAP_EVENT_PASSKEY_ACTION:
+            ESP_LOGI(TAG, "GAP passkey action %d", event->passkey.params.action);
+            break;
+        case BLE_GAP_EVENT_IDENTITY_RESOLVED:
+            ESP_LOGI(TAG, "GAP identity resolved");
+            break;
+#endif
         default:
             break;
     }
@@ -201,6 +221,13 @@ static void hidhCallback(void *handlerArgs, esp_event_base_t base, int32_t id, v
             {
                 data[i] = maps[i].data;
                 lengths[i] = maps[i].len;
+#if BLE_HID_DEBUG
+                ESP_LOGI(TAG, "Report map %u: %u bytes", (unsigned) i, (unsigned) maps[i].len);
+                if (maps[i].data && maps[i].len)
+                {
+                    ESP_LOG_BUFFER_HEX(TAG, maps[i].data, maps[i].len);
+                }
+#endif
             }
             inputHidOpened(data, lengths, numMaps);
             const char *name = esp_hidh_dev_name_get(param->open.dev);
@@ -308,7 +335,16 @@ void bleHidInit(void)
         ESP_LOGE(TAG, "nimble_port_init() failed: %d", ret);
         return;
     }
-    // Security: "just works" bonding, accepted by virtually all HID devices
+    esp_hidh_config_t config =
+    {
+        .callback = hidhCallback,
+        .event_stack_size = 4096,
+        .callback_arg = NULL,
+    };
+    ESP_ERROR_CHECK(esp_hidh_init(&config));
+    // Security: "just works" bonding, accepted by virtually all HID devices. Set after
+    // esp_hidh_init(), which selects a keyboard-only I/O capability: keyboards would then
+    // ask for a passkey to be typed on them.
     ble_hs_cfg.sm_io_cap = BLE_HS_IO_NO_INPUT_OUTPUT;
     ble_hs_cfg.sm_bonding = 1;
     ble_hs_cfg.sm_mitm = 0;
@@ -317,14 +353,6 @@ void bleHidInit(void)
     ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
     ble_store_config_init();
-    //
-    esp_hidh_config_t config =
-    {
-        .callback = hidhCallback,
-        .event_stack_size = 4096,
-        .callback_arg = NULL,
-    };
-    ESP_ERROR_CHECK(esp_hidh_init(&config));
     nimble_port_freertos_init(nimbleHostTask);
     xTaskCreatePinnedToCoreWithCaps(bleHidTask, "blehid", 4096, NULL, 5, NULL, BLE_HID_TASK_CORE, MALLOC_CAP_SPIRAM);
 #endif
