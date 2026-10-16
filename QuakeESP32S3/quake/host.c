@@ -864,7 +864,7 @@ void _Host_Frame(float time)
         _g->fps10 = (10000000.0f / timeTaken) + 0.5f;
     }
 #endif
-#define PRITNTIMES !ESP_PLATFORM     // printing each frame on the ESP32 console would slow down the game
+#define PRITNTIMES (!ESP_PLATFORM && !__ZEPHYR__)     // printing each frame on the console would slow down the game
 #if PRITNTIMES
     printf("%u\r", (unsigned int) timeTaken);
 #endif
@@ -1102,7 +1102,7 @@ void Sys_Printf(char *fmt, ...)
 {
     va_list argptr;
     va_start(argptr, fmt);
-#if ESP_PLATFORM
+#if ESP_PLATFORM || __ZEPHYR__
     vprintf(fmt, argptr);
 #else
     sharedUsartVPrintf(fmt, argptr);

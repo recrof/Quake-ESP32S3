@@ -518,6 +518,18 @@ model_t* Mod_LoadModel(model_t *mod, qboolean crash)
     }
 
 #endif
+#if __ZEPHYR__
+    // nRF54: the map is copied to the on-board SPI flash, a faster second level PAK cache
+    {
+#if MODEL_HAS_NAME_POINTER
+        const char *mapName = mod->name;
+#else
+        const char *mapName = getStringFromIndex(mod->nameIdx);
+#endif
+        if (!strncmp(mapName, "maps/", 5) && strncmp(mapName, "maps/b_", 7))
+            extMemCacheMap(buf, size);
+    }
+#endif
 
 //
 // allocate a new model

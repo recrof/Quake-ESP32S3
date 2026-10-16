@@ -9,3 +9,4 @@ dependencies.lock
 release/*.PAK
 release/*.pak
 build-*/
+dist/

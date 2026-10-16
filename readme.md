@@ -11,6 +11,9 @@ with a [2.8" ILI9341 SPI module](https://done.land/components/humaninterface/dis
 (MSP2806/MSP2807, with microSD slot). Bluetooth LE keyboards, mice and gamepads are supported on all of them. Other ESP32-S3 boards with PSRAM, a 320x240 SPI display and an SD card can be
 configured in [`board_config.h`](QuakeESP32S3/main/board_config.h).
 
+A Zephyr port to the Seeed XIAO nRF54LM20A with an ILI9341 SPI LCD module (no PSRAM: 511 kB RAM)
+is in [`QuakeNRF54`](QuakeNRF54/README.md).
+
 Based on WinQuake/SDLQuake by id Software, MG24 port by Nicola Wrachien (next-hack). The
 technical background of the engine is described in the next-hack articles:
 
@@ -250,11 +253,12 @@ idf.py -B build-m9 -DBOARD=BOARD_THINKNODE_M9 build flash monitor      # ThinkNo
 idf.py -B build-xiao -DBOARD=BOARD_XIAO_ESP32S3 build flash monitor    # XIAO ESP32S3 + ILI9341 module
 ```
 
-To create the merged image for a release:
+To create the merged images for a release (`QuakeESP32S3/dist/QuakeESP32S3-<board>.bin`, from
+the `build-l2`, `build-tdeck`, `build-m9` and `build-xiao` directories configured as above):
 
 ```sh
-cd QuakeESP32S3/build
-esptool.py --chip esp32s3 merge_bin -o QuakeESP32S3-wio-tracker-l2.bin @flash_args
+QuakeESP32S3/tools/merge.sh            # all boards
+QuakeESP32S3/tools/merge.sh l2 tdeck   # some of them
 ```
 
 `platformio.ini` is provided for PlatformIO users (pioarduino platform, ESP-IDF 5.5) but has
@@ -292,7 +296,8 @@ default is -14 dB).
 | `QuakeESP32S3/main` | ESP32-S3 platform code: display, SD/PAK access, audio, input, touch, Bluetooth, board support |
 | `QuakeESP32S3/main/port` | headers replacing the MG24 platform headers used by the engine |
 | `QuakeESP32S3/components/esp_hid` | ESP-IDF 5.5.5 `esp_hid` with an upstream fix: without it no BLE HID device works (see its README) |
-| `QuakeESP32S3/quake` | the MG24Quake engine; ESP32 code paths are selected with `ESP_PLATFORM` |
+| `QuakeESP32S3/quake` | the MG24Quake engine; ESP32 code paths are selected with `ESP_PLATFORM`, nRF54 (Zephyr) ones with `__ZEPHYR__` |
+| `QuakeNRF54` | XIAO nRF54LM20A port (Zephyr), see its [README](QuakeNRF54/README.md) |
 | `QuakeESP32S3/tools/MCUPackConverter` | PAK converter |
 | `QuakeESP32S3/tools/QuakeCConverter`, `FunctionArrayCreator`, `QTablesGenerator` | MG24Quake tools that generate engine sources (QuakeC progs, field accessors, lookup tables); only needed to change the game code |
 

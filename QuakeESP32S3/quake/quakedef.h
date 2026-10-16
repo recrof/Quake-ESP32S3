@@ -51,6 +51,9 @@
 #if ESP_PLATFORM
 #define moncontrol(m)
 #define DRAWSURF_SEC            // code runs from flash through the instruction cache
+#elif __ZEPHYR__
+#define moncontrol(m)
+#define DRAWSURF_SEC            // nRF54LM20A: code runs from RRAM through the instruction cache
 #elif !WIN32
 #define moncontrol(m)
 #define DRAWSURF_SEC __attribute__ ((section(".drawsurf")))
@@ -103,7 +106,7 @@
 // MG24 auxiliary (slower) RAM -> ESP32 PSRAM: only non speed critical, zero-initialized data is placed here.
 #include "esp_attr.h"
 #define AUX_SECTION EXT_RAM_BSS_ATTR
-#elif WIN32
+#elif WIN32 || __ZEPHYR__
 #define AUX_SECTION
 #else
 #define AUX_SECTION __attribute__ ((section(".aux_ram_bss")))

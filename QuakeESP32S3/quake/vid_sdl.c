@@ -543,7 +543,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
     (void) height;
 }
 
-#if !ESP_PLATFORM    // ESP32: Sys_SendKeyEvents() and IN_Move() are implemented in esp_input.c
+#if !ESP_PLATFORM && !__ZEPHYR__    // ESP32 / nRF54: Sys_SendKeyEvents() and IN_Move() are implemented in esp_input.c / nrf_input.c
 /*
  ================
  Sys_SendKeyEvents
@@ -776,5 +776,5 @@ void IN_Move(usercmd_t *cmd)
     cmd->forwardmove -= m_forward * ly;
     cmd->sidemove += m_side * lx;
 }
-#endif // !ESP_PLATFORM
+#endif // !ESP_PLATFORM && !__ZEPHYR__
 #endif

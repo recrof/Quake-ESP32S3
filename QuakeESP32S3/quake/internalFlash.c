@@ -48,6 +48,24 @@
   #define FLASH_SIZE INTERNAL_FLASH_CACHE_SIZE
   EXT_RAM_BSS_ATTR __attribute__ ((aligned (4))) uint8_t internalFlash[FLASH_SIZE];
   static uint32_t pointer = APP_SIZE;
+  static void copyToInternalFlash(void *dest, const void *src, int size)
+  {
+      if (isOnExternalFlash(src))
+      {
+          extMemGetDataFromAddress(dest, (void*) src, size);
+      }
+      else
+      {
+          memcpy(dest, src, size);
+      }
+  }
+#elif __ZEPHYR__
+  // nRF54LM20A: the "internal flash" cache is the RRAM after the firmware (port/nrf_rram.c).
+  #include "nrf_rram.h"
+  #define FLASH_SIZE rramCacheSize
+  #define internalFlash rramCacheBase
+  static uint32_t pointer = APP_SIZE;
+  #define copyToInternalFlash(dest, src, size) rramWrite(dest, src, size)
 #elif WIN32
     #if LET_ME_JUST_WORK
   #define FLASH_SIZE (15360 * 1024)
@@ -73,7 +91,7 @@ void internalFlashInit(void)
 }
 int getInternalFlashRemaningSize(void)
 {
-    #if ESP_PLATFORM
+    #if ESP_PLATFORM || __ZEPHYR__
     return FLASH_SIZE - pointer;
     #elif WIN32
     return 1024*1536 - pointer;
@@ -82,7 +100,7 @@ int getInternalFlashRemaningSize(void)
 
     #endif
 }
-#if ESP_PLATFORM
+#if ESP_PLATFORM || __ZEPHYR__
 void eraseInternalFlash(int sections)
 {
     (void) sections;
@@ -110,14 +128,7 @@ void* storeToInternalFlash(const void *buffer, int size)
         Sys_Error("Internal flash cache overflow (%d requested)", size);
     }
     uint8_t *ptr = &internalFlash[pointer];
-    if (isOnExternalFlash(buffer))
-    {
-        extMemGetDataFromAddress(ptr, (void*) buffer, size);
-    }
-    else
-    {
-        memcpy(ptr, buffer, size);
-    }
+    copyToInternalFlash(ptr, buffer, size);
     pointer += size;
     return ptr;
 }
@@ -129,14 +140,7 @@ void* storeToInternalFlashAtPointer(void *buffer, void *flashPos, int size)
     {
         Sys_Error("Internal flash cache overflow (%d requested)", size);
     }
-    if (isOnExternalFlash(buffer))
-    {
-        extMemGetDataFromAddress(flashPos, buffer, size);
-    }
-    else
-    {
-        memcpy(flashPos, buffer, size);
-    }
+    copyToInternalFlash(flashPos, buffer, size);
     return flashPos;
 }
 #elif WIN32

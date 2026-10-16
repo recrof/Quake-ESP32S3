@@ -151,7 +151,11 @@ void SNDDMA_Shutdown(void)
 qboolean SNDDMA_Init(void)
 {
   initAudio();
+#if __ZEPHYR__
+  return audioIsAvailable();    // without audio output, nothing is mixed at all
+#else
   return 1;
+#endif
 }
 #endif
 

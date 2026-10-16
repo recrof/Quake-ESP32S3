@@ -1,3 +1,4 @@
 *.bak
 *.o
 *.cscope_file_list.DS_Store
+QuakeNRF54/build*/

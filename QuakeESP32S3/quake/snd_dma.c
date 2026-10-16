@@ -1046,7 +1046,7 @@ void S_Update_(void)
     }
     int channelsPainted = 0;
     // where are we in our circular buffer?
-#if ESP_PLATFORM
+#if ESP_PLATFORM || __ZEPHYR__
     uint32_t currentIdx = audioGetPlayIndex();
 #else
     uint32_t currentIdx = ((LDMA->CH[AUDIO_DMA_CHANNEL_L].SRC - (uint32_t) audioBuffer) / sizeof(audioBuffer[0])) / 2;
